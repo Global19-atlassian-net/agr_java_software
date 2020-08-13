@@ -12,7 +12,8 @@ public class StatisticsController implements StatisticsRESTInterface {
 
     @Override
     public TransgenicAlleleStats getTrans() {
-        service.getAllTransgenicAlleles();
+        TransgenicAlleleStats stats =  service.getAllTransgenicAlleles();
+
         return null;
     }
 }

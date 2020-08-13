@@ -39,7 +39,6 @@ public interface StatisticsRESTInterface {
                             description = "transgenic allele object.",
                             content = @Content(mediaType = "application/json",
                                     schema = @Schema(implementation = DOTerm.class)))})
-
-    public TransgenicAlleleStats getTrans();
+    TransgenicAlleleStats getTrans();
 
 }

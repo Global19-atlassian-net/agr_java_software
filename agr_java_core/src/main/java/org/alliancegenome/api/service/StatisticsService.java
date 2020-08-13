@@ -1,8 +1,11 @@
 package org.alliancegenome.api.service;
 
 import org.alliancegenome.cache.repository.AlleleCacheRepository;
+import org.alliancegenome.cache.repository.helper.JsonResultResponse;
 import org.alliancegenome.core.ColumnStats;
+import org.alliancegenome.core.StatisticRow;
 import org.alliancegenome.core.TransgenicAlleleStats;
+import org.alliancegenome.es.model.query.Pagination;
 import org.alliancegenome.neo4j.entity.SpeciesType;
 import org.alliancegenome.neo4j.entity.node.Allele;
 import org.alliancegenome.neo4j.entity.node.Construct;
@@ -20,11 +23,33 @@ import static java.util.stream.Collectors.*;
 @RequestScoped
 public class StatisticsService {
 
+    ColumnStats geneStat = new ColumnStats("Gene", true, false, false, false);
+
     @Inject
     private AlleleCacheRepository cacheRepository = new AlleleCacheRepository();
 
 
-    public TransgenicAlleleStats getAllTransgenicAlleles() {
+    public JsonResultResponse<StatisticRow> getAllTransgenicAllele(Pagination pagination) {
+        Map<String, List<Allele>> alleleMap = cacheRepository.getAllTransgenicAlleles();
+
+        Map<String, List<Allele>> filteredAlleleMap = new HashMap<>();
+        alleleMap.forEach((gene, alleles) -> {
+            String geneID = gene.split("\\|\\|")[0];
+            String geneSpecies = SpeciesType.getTypeByID(gene.split("\\|\\|")[2]).getAbbreviation();
+
+        });
+
+        filteredAlleleMap.forEach((gene, alleles) -> {
+            StatisticRow row = new StatisticRow();
+            row.put(gene, gene);
+            row.put("GeneSpecies", SpeciesType.getTypeByID(gene.split("\\|\\|")[2]).getAbbreviation());
+
+        });
+        JsonResultResponse<StatisticRow> response = new JsonResultResponse<>();
+        return response;
+    }
+
+    public TransgenicAlleleStats getAllTransgenicAlleleStat() {
         Map<String, List<Allele>> alleleMap = cacheRepository.getAllTransgenicAlleles();
 
         TransgenicAlleleStats stat = new TransgenicAlleleStats();
@@ -42,9 +67,8 @@ public class StatisticsService {
         Map<String, List<String>> sortSpecies = species.stream()
                 .collect(groupingBy(o -> o));
 
-        Map<String, Integer> sorted = getValueSortedMap(sortSpecies);
-        geneSpecies.setHistogram(sorted);
-        geneSpecies.setTotalDistinctNumber(sorted.size());
+        geneSpecies.setHistogram(getValueSortedMap(sortSpecies));
+        geneSpecies.setTotalDistinctNumber(getValueSortedMap(sortSpecies).size());
         stat.addColumn(geneSpecies);
 
         ColumnStats speciesTG = new ColumnStats("Species, (carrying the transgene", false, false, false, true);
@@ -165,6 +189,16 @@ public class StatisticsService {
 */
         diseaseStat.setHistogram(getHistogram(alleleMap, diseaseFunction));
         stat.addColumn(diseaseStat);
+
+        ColumnStats phenotypeStat = new ColumnStats("Associated Phenotype", false, false, false, true);
+        Function<Allele, String> phenotypeFunction = feature -> feature.hasPhenotype().toString();
+/*
+        diseaseStat.setTotalNumber(getTotalNumber(alleleMap, disease));
+        diseaseStat.setTotalDistinctNumber(getTotalDistinctNumber(alleleMap, disease));
+        diseaseStat.setCardinality(getCardinality(alleleMap, disease));
+*/
+        phenotypeStat.setHistogram(getHistogram(alleleMap, phenotypeFunction));
+        stat.addColumn(phenotypeStat);
 
         return stat;
     }
