@@ -9,6 +9,8 @@ import com.fasterxml.jackson.annotation.JsonView;
 import lombok.Getter;
 import lombok.Setter;
 
+import java.util.Objects;
+
 @NodeEntity
 @Getter
 @Setter
@@ -22,5 +24,18 @@ public class Synonym extends Identifier {
     @Override
     public String toString() {
         return name;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        Synonym synonym = (Synonym) o;
+        return Objects.equals(primaryKey, synonym.primaryKey);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(primaryKey);
     }
 }

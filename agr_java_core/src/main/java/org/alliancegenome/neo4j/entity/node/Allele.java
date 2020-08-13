@@ -1,5 +1,6 @@
 package org.alliancegenome.neo4j.entity.node;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonView;
 import lombok.Getter;
 import lombok.Setter;
@@ -32,6 +33,8 @@ public class Allele extends GeneticEntity implements Comparable<Allele>, Present
     private String symbolTextWithSpecies;
     @JsonView({View.AlleleAPI.class})
     private String description;
+    private boolean hasPhenotype;
+    private boolean hasDisease;
 
     @JsonView({View.AlleleAPI.class, View.TransgenicAlleleAPI.class})
     @Relationship(type = "IS_ALLELE_OF")
@@ -67,12 +70,30 @@ public class Allele extends GeneticEntity implements Comparable<Allele>, Present
     }
 
     @JsonView({View.TransgenicAlleleAPI.class})
+    @JsonProperty(value = "hasPhenotype")
     public Boolean hasPhenotype() {
-        return CollectionUtils.isNotEmpty(phenotypes);
+        if (!hasPhenotype)
+            return CollectionUtils.isNotEmpty(phenotypes);
+        return true;
+    }
+
+    @JsonProperty(value = "hasPhenotype")
+    public void setPhenotype(Boolean hasPhenotype) {
+        this.hasPhenotype = hasPhenotype;
     }
 
     @JsonView({View.TransgenicAlleleAPI.class})
+    @JsonProperty(value = "hasDisease")
     public Boolean hasDisease() {
-        return CollectionUtils.isNotEmpty(diseaseEntityJoins);
+        if (!hasDisease)
+            return CollectionUtils.isNotEmpty(diseaseEntityJoins);
+        return true;
     }
+
+    @JsonProperty(value = "hasDisease")
+    public void setDisease(Boolean hasDisease) {
+        this.hasDisease = hasDisease;
+    }
+
+
 }

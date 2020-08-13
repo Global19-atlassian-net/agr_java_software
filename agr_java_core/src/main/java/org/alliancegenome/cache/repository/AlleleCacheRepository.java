@@ -18,16 +18,15 @@ import org.alliancegenome.neo4j.entity.node.Allele;
 import org.apache.commons.collections.CollectionUtils;
 
 import javax.enterprise.context.RequestScoped;
-import javax.inject.Inject;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 @Log4j2
 @RequestScoped
 public class AlleleCacheRepository {
 
-    @Inject
-    private CacheService cacheService;
+    private CacheService cacheService = new CacheService();
 
     public JsonResultResponse<Allele> getAllelesBySpecies(String taxonID, Pagination pagination) {
         List<Allele> allAlleles = cacheService.getCacheEntries(taxonID, CacheAlliance.ALLELE_SPECIES);
@@ -100,5 +99,12 @@ public class AlleleCacheRepository {
         if (diseaseAnnotations == null)
             return null;
         return diseaseAnnotations;
+    }
+
+    public Map<String, List<Allele>> getAllTransgenicAlleles() {
+        Map<String, List<Allele>> transgenicAlleleMap = cacheService.getCacheEntryMap(CacheAlliance.TRANSGENIC_ALLELES.getCacheName(), CacheAlliance.TRANSGENIC_ALLELES);
+        if (transgenicAlleleMap == null)
+            return null;
+        return transgenicAlleleMap;
     }
 }

@@ -607,9 +607,9 @@ public class GeneRepository extends Neo4jRepository<Gene> {
             return null;
         Map<String, Object> params = new HashMap<>();
         params.put("ids", taxonIDs);
-        String cypher = " MATCH p1=(q:Species)-[:FROM_SPECIES]-(g:Gene)--(x:CrossReference ) "
+        String cypher = " MATCH p1=(q:Species)-[:FROM_SPECIES]-(g:Gene)--(x:CrossReference ), p2=(g:Gene)--(:Construct) "
                 + " WHERE q.primaryKey IN $ids "
-                + "RETURN p1";
+                + "RETURN p1, p2";
 
         Iterable<Gene> joins = query(Gene.class, cypher, params);
         return StreamSupport.stream(joins.spliterator(), false).

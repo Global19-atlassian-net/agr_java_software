@@ -1,32 +1,35 @@
 package org.alliancegenome.cache;
 
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.List;
-
-import javax.enterprise.context.RequestScoped;
-import javax.inject.Inject;
-
-import org.alliancegenome.api.entity.CacheStatus;
-import org.alliancegenome.core.config.CacheConfig;
-import org.alliancegenome.neo4j.view.View;
-import org.infinispan.client.hotrod.RemoteCache;
-import org.infinispan.client.hotrod.RemoteCacheManager;
-
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.MapperFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.databind.type.CollectionType;
-
+import com.fasterxml.jackson.databind.type.MapType;
 import lombok.extern.log4j.Log4j2;
+import org.alliancegenome.api.entity.CacheStatus;
+import org.alliancegenome.core.config.CacheConfig;
+import org.alliancegenome.neo4j.entity.node.Allele;
+import org.alliancegenome.neo4j.view.View;
+import org.infinispan.client.hotrod.RemoteCache;
+import org.infinispan.client.hotrod.RemoteCacheManager;
+import org.infinispan.commons.util.CloseableIteratorSet;
+
+import javax.enterprise.context.RequestScoped;
+import javax.inject.Inject;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 @Log4j2
 @RequestScoped
 public class CacheService {
-    
+
     @Inject
     private RemoteCacheManager manager;
 
@@ -55,11 +58,11 @@ public class CacheService {
     private RemoteCache<String, String> getCacheSpace(CacheAlliance cache) {
         //log.info("Getting Cache Space: " + cache.getCacheName());
         RemoteCache<String, String> remoteCache = manager.getCache(cache.getCacheName());
-        
-        if(remoteCache == null) {
+
+        if (remoteCache == null) {
             return CacheConfig.createCache(cache);
         }
-        
+
         return remoteCache;
     }
 
@@ -80,6 +83,24 @@ public class CacheService {
         }
 
         return list;
+    }
+
+    public HashMap getCacheEntryMap(String entityID, CacheAlliance cacheSpace) {
+        String json = getCacheSpace(cacheSpace).get(entityID);
+        if (json == null)
+            return null;
+
+        HashMap hashMap;
+
+        try {
+            hashMap = new HashMap<>(mapper.readValue(json, new TypeReference<Map<String, List<Allele>>>() {
+            }));
+        } catch (IOException e) {
+            log.error("Error during deserialization ", e);
+            throw new RuntimeException(e);
+        }
+
+        return hashMap;
     }
 
     public CacheStatus getCacheStatus(String entityName, CacheAlliance cacheSpace) {
@@ -108,7 +129,7 @@ public class CacheService {
             throw new RuntimeException(e);
         }
     }
-    
+
     public <O> String getCacheEntryString(String entityId, CacheAlliance cacheSpace, Class<O> clazz) {
         return getCacheSpace(cacheSpace).get(entityId);
     }
@@ -136,5 +157,4 @@ public class CacheService {
             throw new RuntimeException(e);
         }
     }
-    
 }

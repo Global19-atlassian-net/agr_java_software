@@ -111,8 +111,15 @@ public class Construct extends GeneticEntity implements Comparable<Construct>, P
         // 2. genes by phylogenetic species then by case-insensitive symbol
         // 3. nonBGIs by case-insensitive symbol
         nonBgis.sort(Comparator.comparing(geneticEntity -> geneticEntity.getSymbol().toLowerCase()));
-        Comparator<GeneticEntity> comparingSpecies = Comparator.comparing(geneticEntity -> geneticEntity.getSpecies().getPhylogeneticOrder());
-        entities.sort(comparingSpecies.thenComparing(o -> o.getSymbol().toLowerCase()));
+        Comparator<GeneticEntity> comparingSpecies = Comparator.comparing(geneticEntity -> {
+            if (geneticEntity.getSpecies() != null)
+                return geneticEntity.getSpecies().getPhylogeneticOrder();
+            else
+                return 20;
+        });
+        entities.sort(comparingSpecies.thenComparing(o -> o.getSymbol().
+
+                toLowerCase()));
         entities.addAll(nonBgis);
     }
 

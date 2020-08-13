@@ -3,6 +3,7 @@ package org.alliancegenome.api.tests.integration;
 import lombok.Getter;
 import lombok.Setter;
 import org.alliancegenome.api.service.AlleleService;
+import org.alliancegenome.cache.repository.AlleleCacheRepository;
 import org.alliancegenome.cache.repository.helper.JsonResultResponse;
 import org.alliancegenome.es.model.query.Pagination;
 import org.alliancegenome.neo4j.entity.SpeciesType;
@@ -28,17 +29,31 @@ public class TransgenicAlleleStats {
 
     private static AlleleService alleleService = new AlleleService();
 
+    static AlleleCacheRepository cacheRepository = new AlleleCacheRepository();
+
     public static void main(String[] args) {
+
+
+        Map<String, List<Allele>> alleleMapper = cacheRepository.getAllTransgenicAlleles();
+
         GeneRepository repository = new GeneRepository();
+
+/*
+        GeneRepository repository = new GeneRepository();
+        Map<String, Gene> geneMapTotal = new HashMap<>();
+        JsonResultResponse<Allele> responseAll = new JsonResultResponse<>();
+        Map<String, JsonResultResponse<Allele>> alleleMap = new HashMap<>();
         Arrays.stream(SpeciesType.values())
                 .filter(speciesType -> speciesType.equals(SpeciesType.FLY))
                 .forEach(speciesType -> {
                     List<Gene> genes = repository.getAllGenes(List.of(speciesType.getTaxonID()));
+                    genes.removeIf(gene -> !gene.getPrimaryKey().equals("FB:FBgn0003996"));
                     System.out.println("Organism: " + speciesType.getAbbreviation());
                     System.out.println("Total number of genes: " + genes.size());
 
                     Map<String, Gene> geneMap = genes.stream().collect(toMap(Gene::getPrimaryKey, gene -> gene));
-                    Map<String, JsonResultResponse<Allele>> alleleMap = new HashMap<>();
+                    geneMapTotal.putAll(geneMap);
+
                     for (int index = 0; index < genes.size(); index++) {
                         Gene gene = genes.get(index);
                         String geneID = gene.getPrimaryKey();
@@ -53,6 +68,8 @@ public class TransgenicAlleleStats {
                     }
                     System.out.println("");
 
+*/
+/*
                     getOrganismTransgeneAlleles(geneMap, alleleMap);
                     System.out.println("");
                     getTransgeneAllelesSpecies(geneMap, alleleMap, speciesType);
@@ -68,8 +85,26 @@ public class TransgenicAlleleStats {
                     getTransgeneAllelesRegulatedGenes(alleleMap);
                     System.out.println("");
                     getTransgeneAllelesTargetGenes(alleleMap);
+*//*
+
                 });
+        getOrganismTransgeneAlleles(geneMapTotal, alleleMap);
+        System.out.println("");
+        //getTransgeneAllelesSpecies(geneMapTotal, alleleMap, speciesType);
+        System.out.println("");
+        getTransgeneAllelesHasAnnotation(geneMapTotal, alleleMap, Allele::hasDisease);
+        System.out.println("");
+        getTransgeneAllelesHasAnnotation(geneMapTotal, alleleMap, Allele::hasPhenotype);
+        System.out.println("");
+        getTransgeneAllelesConstructs(alleleMap);
+        System.out.println("");
+        getTransgeneAllelesExpressedGenes(alleleMap);
+        System.out.println("");
+        getTransgeneAllelesRegulatedGenes(alleleMap);
+        System.out.println("");
+        getTransgeneAllelesTargetGenes(alleleMap);
         System.exit(0);
+*/
     }
 
     public static void getOrganismTransgeneAlleles(Map<String, Gene> geneMap, Map<String, JsonResultResponse<Allele>> alleleMap) {
@@ -176,7 +211,7 @@ public class TransgenicAlleleStats {
             System.out.print(output);
             totalOutput.append(output);
         });
-        writeToFile(totalOutput, "allele-disease.txt");
+        writeToFile(totalOutput, "allele-disease"+booleanFunction.toString()+".txt");
         System.out.println("End Disease list " + booleanFunction.toString());
     }
 

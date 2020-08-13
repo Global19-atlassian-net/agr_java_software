@@ -8,6 +8,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import org.alliancegenome.api.entity.ID;
 import org.alliancegenome.es.util.DateConverter;
 import org.alliancegenome.neo4j.entity.Neo4jEntity;
 import org.alliancegenome.neo4j.view.View;
@@ -25,7 +26,7 @@ import lombok.Setter;
 @Getter
 @Setter
 @Schema(name="GeneticEntity", description="POJO that represents a Genetic Entity")
-public class GeneticEntity extends Neo4jEntity {
+public class GeneticEntity extends Neo4jEntity implements ID {
 
     protected CrossReferenceType crossReferenceType;
 

@@ -83,5 +83,12 @@ public class CacheAllianceTest {
         cacher.run();
     }
 
+    @Ignore
+    @Test
+    public void cacheTransgenicAlleles() {
+        TransgenicAlleleCacher cacher = new TransgenicAlleleCacher();
+        cacher.run();
+    }
+
 
 }

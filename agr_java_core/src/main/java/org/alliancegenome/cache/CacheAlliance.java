@@ -27,6 +27,7 @@ public enum CacheAlliance {
     //GENE_DISEASE_ANNOTATION(),
 
     ALLELE_GENE(Allele.class, (3944 * 100) + 741634), // min: 607 max: 741634 mean: 3944
+    TRANSGENIC_ALLELES(Allele.class, (3944 * 100) + 741634), // min: 607 max: 741634 mean: 3944
     ALLELE_PHENOTYPE(PhenotypeAnnotation.class, (7400 * 100) + 680459), // min: 789 max: 680459  mean: 7400
     ALLELE_DISEASE(DiseaseAnnotation.class, (3700 * 100) + 82728), // min: 1814 max: 82728 mean: 3700
     ALLELE_SPECIES(Allele.class, 1_000_000_000), // min: 655252 max: 209555003 mean: 691048194

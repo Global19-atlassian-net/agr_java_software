@@ -4,13 +4,8 @@ import org.alliancegenome.api.service.AlleleService;
 import org.alliancegenome.cache.repository.helper.JsonResultResponse;
 import org.alliancegenome.es.model.query.FieldFilter;
 import org.alliancegenome.es.model.query.Pagination;
-import org.alliancegenome.neo4j.entity.SpeciesType;
 import org.alliancegenome.neo4j.entity.node.Allele;
-import org.alliancegenome.neo4j.entity.node.Gene;
-import org.alliancegenome.neo4j.repository.GeneRepository;
 import org.junit.Test;
-
-import java.util.List;
 
 import static org.hamcrest.Matchers.*;
 import static org.junit.Assert.*;
