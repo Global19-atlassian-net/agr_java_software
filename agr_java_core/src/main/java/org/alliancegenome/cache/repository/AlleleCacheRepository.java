@@ -16,6 +16,7 @@ import org.alliancegenome.neo4j.entity.DiseaseAnnotation;
 import org.alliancegenome.neo4j.entity.PhenotypeAnnotation;
 import org.alliancegenome.neo4j.entity.node.Allele;
 import org.apache.commons.collections.CollectionUtils;
+import org.apache.commons.collections4.MapUtils;
 
 import javax.enterprise.context.RequestScoped;
 import java.util.List;
@@ -101,10 +102,15 @@ public class AlleleCacheRepository {
         return diseaseAnnotations;
     }
 
+    private static Map<String, List<Allele>> transgenicAlleleMap = null;
+
     public Map<String, List<Allele>> getAllTransgenicAlleles() {
-        Map<String, List<Allele>> transgenicAlleleMap = cacheService.getCacheEntryMap(CacheAlliance.TRANSGENIC_ALLELES.getCacheName(), CacheAlliance.TRANSGENIC_ALLELES);
+        if (MapUtils.isNotEmpty(transgenicAlleleMap))
+            return transgenicAlleleMap;
+        transgenicAlleleMap = cacheService.getCacheEntryMap(CacheAlliance.TRANSGENIC_ALLELES.getCacheName(), CacheAlliance.TRANSGENIC_ALLELES);
         if (transgenicAlleleMap == null)
             return null;
+        log.info(transgenicAlleleMap.size());
         return transgenicAlleleMap;
     }
 }

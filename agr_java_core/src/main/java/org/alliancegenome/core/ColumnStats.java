@@ -8,12 +8,14 @@ import org.apache.commons.lang3.Range;
 import org.eclipse.microprofile.openapi.annotations.media.Schema;
 
 import java.io.Serializable;
+import java.util.List;
 import java.util.Map;
+import java.util.function.Function;
 
 @Setter
 @Getter
 @Schema(name = "TransgenicAlleleStats", description = "POJO that represents Transgenic Allele Statistics")
-public class ColumnStats implements Serializable {
+public class ColumnStats<Entity, SubEntity> implements Serializable {
 
     @JsonView(View.API.class)
     private String name;
@@ -26,16 +28,8 @@ public class ColumnStats implements Serializable {
     @JsonView(View.API.class)
     private boolean limitedValues;
 
-    @JsonView(View.API.class)
-    private int totalNumber;
-    @JsonView(View.API.class)
-    private int totalDistinctNumber;
-    @JsonView(View.API.class)
-    private Map<String, Integer> histogram;
-    @JsonView(View.API.class)
-    private Range cardinality;
-    @JsonView(View.API.class)
-    private Range cardinalityParent;
+    private Function<Entity, List<SubEntity>> multiValueFunction;
+    private Function<Entity, String> singleValuefunction;
 
     public ColumnStats(String name, boolean superEntity, boolean rowEntity, boolean multiValued, boolean limitedValues) {
         this.name = name;
@@ -45,16 +39,21 @@ public class ColumnStats implements Serializable {
         this.limitedValues = limitedValues;
     }
 
-    @Override
-    public String toString() {
-        String display = name + "\r\n";
-        display += "T:\t" + totalNumber + "\r\n";
-        display += "TD:\t" + totalDistinctNumber + "\r\n";
-        if (limitedValues)
-            display += "Enum:\t" + histogram + "\r\n";
-        display += "C:\t" + cardinality + "\r\n";
-        display += "PC:\t" + cardinalityParent + "\r\n";
-        display += "\r\n";
-        return display;
+    public ColumnStats(String name, boolean superEntity, boolean rowEntity, boolean multiValued, boolean limitedValues, Function<Entity, List<SubEntity>> function, Function<Entity, String> sfunction) {
+        this(name, superEntity, rowEntity, multiValued, limitedValues);
+        this.singleValuefunction = sfunction;
+        this.multiValueFunction = function;
     }
+
+    public ColumnStats(String name, boolean superEntity, boolean rowEntity, boolean multiValued, boolean limitedValues, Function<Entity, String> function) {
+        this(name, superEntity, rowEntity, multiValued, limitedValues);
+        this.singleValuefunction = function;
+    }
+
+    public String getSingleValue(Entity a) {
+        if (singleValuefunction == null)
+            return null;
+        return singleValuefunction.apply(a);
+    }
+
 }

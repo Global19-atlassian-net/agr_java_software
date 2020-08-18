@@ -31,11 +31,11 @@ public class Synonym extends Identifier {
         if (this == o) return true;
         if (o == null || getClass() != o.getClass()) return false;
         Synonym synonym = (Synonym) o;
-        return Objects.equals(primaryKey, synonym.primaryKey);
+        return Objects.equals(name, synonym.name);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(primaryKey);
+        return Objects.hash(name);
     }
 }

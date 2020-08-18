@@ -3,61 +3,122 @@ package org.alliancegenome.api.service;
 import org.alliancegenome.cache.repository.AlleleCacheRepository;
 import org.alliancegenome.cache.repository.helper.JsonResultResponse;
 import org.alliancegenome.core.ColumnStats;
+import org.alliancegenome.core.ColumnValues;
 import org.alliancegenome.core.StatisticRow;
 import org.alliancegenome.core.TransgenicAlleleStats;
+import org.alliancegenome.es.model.query.FieldFilter;
 import org.alliancegenome.es.model.query.Pagination;
 import org.alliancegenome.neo4j.entity.SpeciesType;
 import org.alliancegenome.neo4j.entity.node.Allele;
 import org.alliancegenome.neo4j.entity.node.Construct;
 import org.alliancegenome.neo4j.entity.node.GeneticEntity;
+import org.apache.commons.collections4.MapUtils;
 import org.apache.commons.lang3.Range;
 
-import javax.enterprise.context.RequestScoped;
 import javax.inject.Inject;
 import java.util.*;
 import java.util.function.Function;
+import java.util.stream.Collectors;
 
+import static java.util.Comparator.comparing;
 import static java.util.Comparator.comparingInt;
 import static java.util.stream.Collectors.*;
 
-@RequestScoped
-public class StatisticsService {
-
-    ColumnStats geneStat = new ColumnStats("Gene", true, false, false, false);
+public class StatisticsService<Entity> {
 
     @Inject
     private AlleleCacheRepository cacheRepository = new AlleleCacheRepository();
 
 
-    public JsonResultResponse<StatisticRow> getAllTransgenicAllele(Pagination pagination) {
-        Map<String, List<Allele>> alleleMap = cacheRepository.getAllTransgenicAlleles();
+    public JsonResultResponse<StatisticRow> getAllTransgenicAlleles(Pagination pagination) {
+        final Map<String, List<Allele>> alleleMap = cacheRepository.getAllTransgenicAlleles();
+        String species = pagination.getFieldFilterValueMap().get(FieldFilter.SPECIES);
+        String geneSpeciesTaxon = SpeciesType.getTaxonId(species);
 
-        Map<String, List<Allele>> filteredAlleleMap = new HashMap<>();
-        alleleMap.forEach((gene, alleles) -> {
-            String geneID = gene.split("\\|\\|")[0];
-            String geneSpecies = SpeciesType.getTypeByID(gene.split("\\|\\|")[2]).getAbbreviation();
+        Map<String, List<Allele>> filteredAlleleMap = alleleMap.entrySet().stream()
+                .filter(entry -> {
+                    if (geneSpeciesTaxon != null) {
+                        return geneSpeciesTaxon.equals(SpeciesType.getTypeByID(entry.getKey().split("\\|\\|")[2]).getTaxonID());
+                    } else
+                        return true;
+                })
+                .collect(toMap(Map.Entry::getKey, Map.Entry::getValue));
 
-        });
-
+        List<StatisticRow> rows = new ArrayList<>();
         filteredAlleleMap.forEach((gene, alleles) -> {
             StatisticRow row = new StatisticRow();
-            row.put(gene, gene);
-            row.put("GeneSpecies", SpeciesType.getTypeByID(gene.split("\\|\\|")[2]).getAbbreviation());
+            ColumnStats geneStat = new ColumnStats("Gene", true, false, false, false);
+            ColumnValues columnValues = new ColumnValues();
+            columnValues.setValue(gene);
+            row.put(geneStat, columnValues);
+
+            ColumnStats geneSpecies = new ColumnStats("Gene Species", true, false, false, true);
+            ColumnValues genSpecValue = new ColumnValues();
+            genSpecValue.setValue(SpeciesType.getTypeByID(gene.split("\\|\\|")[2]).getAbbreviation());
+            row.put(geneSpecies, genSpecValue);
+
+            ColumnStats<Allele, ?> alleleColStat = getRowEntityColumn();
+            ColumnValues alleleValue = new ColumnValues();
+            alleleValue.setTotalNumber(alleles.size());
+            row.put(alleleColStat, alleleValue);
+
+            getSubEntityRowColumn().forEach(columnStats -> {
+                ColumnValues columnValues1 = new ColumnValues();
+                if (columnStats.isMultiValued()) {
+                    columnValues1.setTotalNumber(getTotalNumberPerUberEntity(alleles, columnStats.getMultiValueFunction()));
+                    columnValues1.setTotalDistinctNumber(getTotalDistinctNumberPerUberEntity(alleles, columnStats.getMultiValueFunction()));
+                    columnValues1.setCardinality(getCardinalityPerUberEntity(alleles, columnStats.getMultiValueFunction()));
+                } else {
+                    // calculate the histogram of possible values
+                    if (columnStats.getSingleValuefunction() != null) {
+                        Map<String, List<String>> unSortedHistogram = alleles.stream()
+                                .map(columnStats.getSingleValuefunction())
+                                .collect(toList())
+                                .stream()
+                                .collect(groupingBy(o -> o));
+                        Map<String, Integer> sortedHistogram = getValueSortedMap(unSortedHistogram);
+                        columnValues1.setHistogram(sortedHistogram);
+                        columnValues1.setTotalDistinctNumber(sortedHistogram.size());
+                        columnValues1.setTotalNumber(sortedHistogram.size());
+                    }
+                }
+                row.put(columnStats, columnValues1);
+
+            });
+
+            rows.add(row);
 
         });
+
+        // sorting
+        rows.sort(comparing(statisticRow -> statisticRow.getColumns().entrySet().stream()
+                .filter(entry -> entry.getValue().getColumnDefinition().isRowEntity())
+                .findAny().get().getValue().getColumnStat().getTotalNumber()));
+        Collections.reverse(rows);
         JsonResultResponse<StatisticRow> response = new JsonResultResponse<>();
+        response.setTotal(rows.size());
+        response.setResults(rows.stream()
+                .skip(pagination.getStart())
+                .limit(pagination.getLimit())
+                .collect(Collectors.toList()));
+        response.addSupplementalData("statistic", getAllTransgenicAlleleStat(filteredAlleleMap));
         return response;
     }
 
     public TransgenicAlleleStats getAllTransgenicAlleleStat() {
         Map<String, List<Allele>> alleleMap = cacheRepository.getAllTransgenicAlleles();
+        return getAllTransgenicAlleleStat(alleleMap);
+    }
+
+    public TransgenicAlleleStats getAllTransgenicAlleleStat(final Map<String, List<Allele>> alleleMap) {
 
         TransgenicAlleleStats stat = new TransgenicAlleleStats();
 
         ColumnStats gene = new ColumnStats("Gene", true, false, false, false);
-        gene.setTotalNumber(alleleMap.size());
-        gene.setTotalDistinctNumber(alleleMap.size());
-        stat.addColumn(gene);
+        ColumnValues geneValues = new ColumnValues();
+        geneValues.setTotalNumber(alleleMap.size());
+        geneValues.setTotalDistinctNumber(alleleMap.size());
+        stat.addColumn(gene, geneValues);
 
         ColumnStats geneSpecies = new ColumnStats("Gene Species", true, false, false, true);
 
@@ -67,23 +128,12 @@ public class StatisticsService {
         Map<String, List<String>> sortSpecies = species.stream()
                 .collect(groupingBy(o -> o));
 
-        geneSpecies.setHistogram(getValueSortedMap(sortSpecies));
-        geneSpecies.setTotalDistinctNumber(getValueSortedMap(sortSpecies).size());
-        stat.addColumn(geneSpecies);
+        ColumnValues geneSpeciesValues = new ColumnValues();
+        geneSpeciesValues.setHistogram(getValueSortedMap(sortSpecies));
+        geneSpeciesValues.setTotalDistinctNumber(getValueSortedMap(sortSpecies).size());
+        stat.addColumn(geneSpecies, geneSpeciesValues);
 
         ColumnStats speciesTG = new ColumnStats("Species, (carrying the transgene", false, false, false, true);
-
-        alleleMap.values().forEach(alleles -> {
-            alleles.stream()
-                    .filter(allele -> allele.getSpecies() != null)
-                    .filter(allele -> allele.getSpecies().getType() == null)
-                    .collect(toList())
-                    .forEach(allele -> {
-//                                System.out.println("Missing Species Type info for Allele: ");
-                                //                              System.out.println(allele.getPrimaryKey() + " " + allele.getSymbolText());
-                            }
-                    );
-        });
 
         Map<String, List<String>> sortSpeciesTG = alleleMap.values().stream()
                 .flatMap(Collection::stream)
@@ -95,18 +145,21 @@ public class StatisticsService {
                 .collect(groupingBy(o -> o));
 
         Map<String, Integer> speciesTGHisto = getValueSortedMap(sortSpeciesTG);
-        speciesTG.setHistogram(speciesTGHisto);
-        speciesTG.setTotalDistinctNumber(speciesTGHisto.size());
-        stat.addColumn(speciesTG);
+
+        ColumnValues speciesTGValues = new ColumnValues();
+        speciesTGValues.setHistogram(speciesTGHisto);
+        speciesTGValues.setTotalDistinctNumber(speciesTGHisto.size());
+        stat.addColumn(speciesTG, speciesTGValues);
 
         ColumnStats allele = new ColumnStats("Allele Symbol", false, true, false, false);
-        allele.setTotalNumber(alleleMap.values().stream().mapToInt(List::size).sum());
+        ColumnValues alleleValues = new ColumnValues();
+        alleleValues.setTotalNumber(alleleMap.values().stream().mapToInt(List::size).sum());
         List<String> distinctAlleles = alleleMap.values().stream()
                 .flatMap(Collection::stream)
                 .map(GeneticEntity::getPrimaryKey)
                 .distinct()
                 .collect(toList());
-        allele.setTotalDistinctNumber(distinctAlleles.size());
+        alleleValues.setTotalDistinctNumber(distinctAlleles.size());
 
         // Allele ID, List<GeneID>
         Map<String, List<String>> alleleOCa = new HashMap<>();
@@ -118,8 +171,10 @@ public class StatisticsService {
             });
         });
         Map<String, Integer> alleleOCardinality = getValueSortedMap(alleleOCa);
-        Range<Integer> alleleParentRange = Range.between(Collections.max(alleleOCardinality.values()), Collections.min(alleleOCardinality.values()));
-        allele.setCardinalityParent(alleleParentRange);
+        if (MapUtils.isNotEmpty(alleleOCardinality)) {
+            Range<Integer> alleleParentRange = Range.between(Collections.max(alleleOCardinality.values()), Collections.min(alleleOCardinality.values()));
+            alleleValues.setCardinalityParent(alleleParentRange);
+        }
 
         Map<String, Integer> alleleCardinality = alleleMap.entrySet().stream()
                 .collect(toMap(Map.Entry::getKey, o -> o.getValue().size(),
@@ -128,77 +183,86 @@ public class StatisticsService {
                         },
                         LinkedHashMap::new));
 
-        Range<Integer> alleleRange = Range.between(Collections.max(alleleCardinality.values()), Collections.min(alleleCardinality.values()));
-        allele.setCardinality(alleleRange);
-        stat.addColumn(allele);
+        if (MapUtils.isNotEmpty(alleleCardinality)) {
+            Range<Integer> alleleRange = Range.between(Collections.max(alleleCardinality.values()), Collections.min(alleleCardinality.values()));
+            alleleValues.setCardinality(alleleRange);
+        }
+        stat.addColumn(allele, alleleValues);
 
         ColumnStats synonym = new ColumnStats("Synonym", false, false, true, false);
-        synonym.setTotalNumber(getTotalNumber(alleleMap, Allele::getSynonyms));
-        synonym.setTotalDistinctNumber(getTotalDistinctNumber(alleleMap, Allele::getSynonymList));
-        synonym.setCardinality(getCardinality(alleleMap, Allele::getSynonymList));
-        stat.addColumn(synonym);
+        ColumnValues synonymValues = new ColumnValues();
+        synonymValues.setTotalNumber(getTotalNumber(alleleMap, Allele::getSynonyms));
+        synonymValues.setTotalDistinctNumber(getTotalDistinctNumber(alleleMap, Allele::getSynonymList));
+        synonymValues.setCardinality(getCardinality(alleleMap, Allele::getSynonymList));
+        stat.addColumn(synonym, synonymValues);
 
         ColumnStats tg = new ColumnStats("Construct", false, false, true, false);
-        tg.setTotalNumber(getTotalNumber(alleleMap, Allele::getConstructs));
-        tg.setTotalDistinctNumber(getTotalDistinctNumber(alleleMap, Allele::getConstructs));
-        tg.setCardinality(getCardinality(alleleMap, Allele::getConstructs));
-        stat.addColumn(tg);
+        ColumnValues tgValues = new ColumnValues();
+        tgValues.setTotalNumber(getTotalNumber(alleleMap, Allele::getConstructs));
+        tgValues.setTotalDistinctNumber(getTotalDistinctNumber(alleleMap, Allele::getConstructs));
+        tgValues.setCardinality(getCardinality(alleleMap, Allele::getConstructs));
+        stat.addColumn(tg, tgValues);
 
         ColumnStats expressedComponents = new ColumnStats("Expressed Components", false, false, true, false);
+        ColumnValues expressedValues = new ColumnValues();
         Function<Allele, List<GeneticEntity>> expressedComponentFunction = feature ->
                 feature.getConstructs().stream()
                         .map(Construct::getExpressedGenes)
                         .flatMap(Collection::stream)
                         .collect(toList());
         ;
-        expressedComponents.setTotalNumber(getTotalNumber(alleleMap, expressedComponentFunction));
-        expressedComponents.setTotalDistinctNumber(getTotalDistinctNumber(alleleMap, expressedComponentFunction));
-        expressedComponents.setCardinality(getCardinality(alleleMap, expressedComponentFunction));
-        stat.addColumn(expressedComponents);
+        expressedValues.setTotalNumber(getTotalNumber(alleleMap, expressedComponentFunction));
+        expressedValues.setTotalDistinctNumber(getTotalDistinctNumber(alleleMap, expressedComponentFunction));
+        expressedValues.setCardinality(getCardinality(alleleMap, expressedComponentFunction));
+        stat.addColumn(expressedComponents, expressedValues);
 
         ColumnStats targetedComponent = new ColumnStats("Knock-down Target", false, false, true, false);
+        ColumnValues targetedValues = new ColumnValues();
         Function<Allele, List<GeneticEntity>> targetComponentFunction = feature ->
                 feature.getConstructs().stream()
                         .map(Construct::getTargetGenes)
                         .flatMap(Collection::stream)
                         .collect(toList());
         ;
-        targetedComponent.setTotalNumber(getTotalNumber(alleleMap, targetComponentFunction));
-        targetedComponent.setTotalDistinctNumber(getTotalDistinctNumber(alleleMap, targetComponentFunction));
-        targetedComponent.setCardinality(getCardinality(alleleMap, targetComponentFunction));
-        stat.addColumn(targetedComponent);
+        targetedValues.setTotalNumber(getTotalNumber(alleleMap, targetComponentFunction));
+        targetedValues.setTotalDistinctNumber(getTotalDistinctNumber(alleleMap, targetComponentFunction));
+        targetedValues.setCardinality(getCardinality(alleleMap, targetComponentFunction));
+        stat.addColumn(targetedComponent, targetedValues);
 
         ColumnStats regulatoryComponent = new ColumnStats("Regulatory Region", false, false, true, false);
+        ColumnValues regulatedValues = new ColumnValues();
         Function<Allele, List<GeneticEntity>> regulatoryComponentFunction = feature ->
                 feature.getConstructs().stream()
                         .map(Construct::getRegulatedByGenes)
                         .flatMap(Collection::stream)
                         .collect(toList());
         ;
-        regulatoryComponent.setTotalNumber(getTotalNumber(alleleMap, regulatoryComponentFunction));
-        regulatoryComponent.setTotalDistinctNumber(getTotalDistinctNumber(alleleMap, regulatoryComponentFunction));
-        regulatoryComponent.setCardinality(getCardinality(alleleMap, regulatoryComponentFunction));
-        stat.addColumn(regulatoryComponent);
+        regulatedValues.setTotalNumber(getTotalNumber(alleleMap, regulatoryComponentFunction));
+        regulatedValues.setTotalDistinctNumber(getTotalDistinctNumber(alleleMap, regulatoryComponentFunction));
+        regulatedValues.setCardinality(getCardinality(alleleMap, regulatoryComponentFunction));
+        stat.addColumn(regulatoryComponent, regulatedValues);
 
         ColumnStats diseaseStat = new ColumnStats("Associated Human Disease", false, false, false, true);
+        ColumnValues diseaseValues = new ColumnValues();
         Function<Allele, String> diseaseFunction = feature -> feature.hasDisease().toString();
 /*
         diseaseStat.setTotalNumber(getTotalNumber(alleleMap, disease));
         diseaseStat.setTotalDistinctNumber(getTotalDistinctNumber(alleleMap, disease));
         diseaseStat.setCardinality(getCardinality(alleleMap, disease));
 */
-        diseaseStat.setHistogram(getHistogram(alleleMap, diseaseFunction));
-        stat.addColumn(diseaseStat);
+        diseaseValues.setHistogram(getHistogram(alleleMap, diseaseFunction));
+        stat.addColumn(diseaseStat, diseaseValues);
 
         ColumnStats phenotypeStat = new ColumnStats("Associated Phenotype", false, false, false, true);
+        ColumnValues phenotypeValues = new ColumnValues();
         Function<Allele, String> phenotypeFunction = feature -> feature.hasPhenotype().toString();
 /*
         diseaseStat.setTotalNumber(getTotalNumber(alleleMap, disease));
         diseaseStat.setTotalDistinctNumber(getTotalDistinctNumber(alleleMap, disease));
         diseaseStat.setCardinality(getCardinality(alleleMap, disease));
 */
-        phenotypeStat.setHistogram(getHistogram(alleleMap, phenotypeFunction));
-        stat.addColumn(phenotypeStat);
+        phenotypeValues.setHistogram(getHistogram(alleleMap, phenotypeFunction));
+        stat.addColumn(phenotypeStat, phenotypeValues);
 
         return stat;
     }
@@ -210,7 +274,20 @@ public class StatisticsService {
                         o -> function.apply(o).size(),
                         // if duplicates occur just take one.
                         (a1, a2) -> a1));
-        return Range.between(Collections.max(cardinality.values()), Collections.min(cardinality.values()));
+        if (MapUtils.isNotEmpty(cardinality))
+            return Range.between(Collections.max(cardinality.values()), Collections.min(cardinality.values()));
+        else return null;
+    }
+
+    private static <ID> Range getCardinalityPerUberEntity(List<Allele> alleles, Function<Allele, List<ID>> function) {
+        Map<String, Integer> cardinality = alleles.stream()
+                .collect(toMap(Allele::getPrimaryKey,
+                        o -> function.apply(o).size(),
+                        // if duplicates occur just take one.
+                        (a1, a2) -> a1));
+        if (MapUtils.isNotEmpty(cardinality))
+            return Range.between(Collections.max(cardinality.values()), Collections.min(cardinality.values()));
+        else return null;
     }
 
     private static <ID> int getTotalNumber(Map<String, List<Allele>> alleleMap, Function<Allele, List<ID>> function) {
@@ -220,9 +297,23 @@ public class StatisticsService {
                 .mapToInt(List::size).sum();
     }
 
+    private static <ID> int getTotalNumberPerUberEntity(List<Allele> alleles, Function<Allele, List<ID>> function) {
+        return alleles.stream()
+                .map(function)
+                .mapToInt(List::size).sum();
+    }
+
     private static <ID> int getTotalDistinctNumber(Map<String, List<Allele>> alleleMap, Function<Allele, List<ID>> function) {
         return alleleMap.values().stream()
                 .flatMap(Collection::stream)
+                .map(function)
+                .flatMap(Collection::stream)
+                .collect(toSet())
+                .size();
+    }
+
+    private static <ID> int getTotalDistinctNumberPerUberEntity(List<Allele> alleles, Function<Allele, List<ID>> function) {
+        return alleles.stream()
                 .map(function)
                 .flatMap(Collection::stream)
                 .collect(toSet())
@@ -253,4 +344,23 @@ public class StatisticsService {
                 ));
     }
 
+    private ColumnStats getRowEntityColumn() {
+        final Optional<ColumnStats<Allele, ?>> any = stats.stream().filter(ColumnStats::isRowEntity).findAny();
+        if (any.isEmpty())
+            throw new RuntimeException("Missing row entity column");
+        return any.get();
+    }
+
+    private List<ColumnStats<Allele, ?>> getSubEntityRowColumn() {
+        return stats.stream()
+                .filter(columnStats -> !columnStats.isRowEntity())
+                .filter(columnStats -> !columnStats.isSuperEntity())
+                .collect(toList());
+    }
+
+    private List<ColumnStats<Allele, ?>> stats;
+
+    public void add(List<ColumnStats<Allele, ?>> stats) {
+        this.stats = stats;
+    }
 }

@@ -39,7 +39,7 @@ public class StatisticsIT {
 
     @Test
     public void checkPhenotypeByGeneWithoutPagination() {
-        TransgenicAlleleStats stat = service.getAllTransgenicAlleles();
+        TransgenicAlleleStats stat = service.getAllTransgenicAlleleStat();
         System.out.println(stat);
         assertNotNull(stat);
     }

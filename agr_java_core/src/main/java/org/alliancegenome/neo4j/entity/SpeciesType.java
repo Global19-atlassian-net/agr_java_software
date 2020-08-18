@@ -32,7 +32,7 @@ public enum SpeciesType {
 
     public static SpeciesType getTypeByName(String name) {
         for (SpeciesType type : values())
-            if (type.name.equals(name))
+            if (type.name.equals(name) || type.getAbbreviation().equals(name))
                 return type;
         return null;
     }
