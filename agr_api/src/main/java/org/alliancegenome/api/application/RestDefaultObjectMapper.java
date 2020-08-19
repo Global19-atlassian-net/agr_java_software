@@ -3,11 +3,14 @@ package org.alliancegenome.api.application;
 import javax.ws.rs.ext.ContextResolver;
 import javax.ws.rs.ext.Provider;
 
+import com.fasterxml.jackson.databind.module.SimpleModule;
+import org.alliancegenome.api.service.helper.RangeSerializer;
 import org.alliancegenome.core.config.ConfigHelper;
 
 import com.fasterxml.jackson.databind.MapperFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
+import org.apache.commons.lang3.Range;
 
 @Provider
 public class RestDefaultObjectMapper implements ContextResolver<ObjectMapper> {
@@ -21,6 +24,9 @@ public class RestDefaultObjectMapper implements ContextResolver<ObjectMapper> {
         if (!ConfigHelper.isProduction())
             mapper.enable(SerializationFeature.INDENT_OUTPUT);
 //        mapper.getSerializerProvider().setNullValueSerializer(new NullSerializer());
+        SimpleModule module = new SimpleModule();
+        module.addSerializer(Range.class, new RangeSerializer());
+        mapper.registerModule(module);
     }
 
     @Override
