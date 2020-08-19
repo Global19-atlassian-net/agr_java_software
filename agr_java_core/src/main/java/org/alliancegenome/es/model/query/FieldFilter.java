@@ -43,6 +43,7 @@ public enum FieldFilter {
     STRINGENCY("stringency"),
     ORTHOLOGY_METHOD("method"),
     ORTHOLOGY_TAXON("taxon"),
+    SUB_ENTITY("sub-entity"),
     INDEX_NAME("indexName");
     public static final String FILTER_PREFIX = "filter.";
     private String name;

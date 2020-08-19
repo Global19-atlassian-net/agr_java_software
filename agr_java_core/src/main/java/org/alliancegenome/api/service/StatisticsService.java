@@ -14,6 +14,7 @@ import org.alliancegenome.neo4j.entity.node.Construct;
 import org.alliancegenome.neo4j.entity.node.GeneticEntity;
 import org.apache.commons.collections4.MapUtils;
 import org.apache.commons.lang3.Range;
+import org.apache.commons.lang3.StringUtils;
 
 import javax.inject.Inject;
 import java.util.*;
@@ -35,6 +36,7 @@ public class StatisticsService<Entity> {
         String species = pagination.getFieldFilterValueMap().get(FieldFilter.SPECIES);
         String geneSpeciesTaxon = SpeciesType.getTaxonId(species);
 
+        // filter by gene species
         Map<String, List<Allele>> filteredAlleleMap = alleleMap.entrySet().stream()
                 .filter(entry -> {
                     if (geneSpeciesTaxon != null) {
@@ -43,6 +45,25 @@ public class StatisticsService<Entity> {
                         return true;
                 })
                 .collect(toMap(Map.Entry::getKey, Map.Entry::getValue));
+
+        // filter by sub entity
+        String subEntityFilter = pagination.getFieldFilterValueMap().get(FieldFilter.SUB_ENTITY);
+        if (subEntityFilter != null && !subEntityFilter.isEmpty()) {
+            Map<String, List<Allele>> filteredAlleleMap1;
+            String[] subEntitySplit = subEntityFilter.split(";");
+            String subEntityName = subEntitySplit[0];
+            String subEntityFilterValue = subEntitySplit[1];
+            ColumnStats<Allele, ?> columnStats = getSubEntityRowColumn().stream()
+                    .filter(col -> col.getName().equals(subEntityName)).findFirst().get();
+
+            filteredAlleleMap1 = filteredAlleleMap.entrySet().stream()
+                    .filter(entry ->
+                            entry.getValue().stream()
+                                    .anyMatch(allele -> columnStats.getSingleValuefunction().apply(allele).equalsIgnoreCase(subEntityFilterValue))
+                    )
+                    .collect(toMap(Map.Entry::getKey, Map.Entry::getValue));
+            filteredAlleleMap = filteredAlleleMap1;
+        }
 
         List<StatisticRow> rows = new ArrayList<>();
         filteredAlleleMap.forEach((gene, alleles) -> {
@@ -91,10 +112,22 @@ public class StatisticsService<Entity> {
         });
 
         // sorting
-        rows.sort(comparing(statisticRow -> statisticRow.getColumns().entrySet().stream()
-                .filter(entry -> entry.getValue().getColumnDefinition().isRowEntity())
-                .findAny().get().getValue().getColumnStat().getTotalNumber()));
-        Collections.reverse(rows);
+
+        // default sorting: by number of Alleles
+        if (StringUtils.isNotEmpty(pagination.getSortBy())) {
+            String sortByField = pagination.getSortBy();
+            ColumnStats<Allele, ?> columnStats = getSubEntityRowColumn().stream()
+                    .filter(col -> col.getName().equals(sortByField)).findFirst().get();
+            rows.sort(comparing(statisticRow -> (Integer)statisticRow.getColumns().entrySet().stream()
+                    .filter(entry -> entry.getValue().getColumnDefinition().equals(columnStats))
+                    .findAny().get().getValue().getColumnStat().getCardinality().getMaximum()));
+            Collections.reverse(rows);
+        } else {
+            rows.sort(comparing(statisticRow -> statisticRow.getColumns().entrySet().stream()
+                    .filter(entry -> entry.getValue().getColumnDefinition().isRowEntity())
+                    .findAny().get().getValue().getColumnStat().getTotalNumber()));
+            Collections.reverse(rows);
+        }
         JsonResultResponse<StatisticRow> response = new JsonResultResponse<>();
         response.setTotal(rows.size());
         response.setResults(rows.stream()
