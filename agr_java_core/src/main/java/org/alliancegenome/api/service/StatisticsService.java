@@ -224,6 +224,18 @@ public class StatisticsService<Entity> {
                 .distinct()
                 .collect(toList());
         alleleValues.setTotalDistinctNumber(distinctAlleles.size());
+        // multiplicity
+        Map<Allele, List<String>> multipleSet = new HashMap<>();
+        for(Map.Entry<String, List<Allele>> entry: alleleMap.entrySet()){
+            entry.getValue().forEach(allele1 -> {
+                List<String> genes = multipleSet.get(allele1);
+                if(genes == null)
+                    genes = new ArrayList<>();
+                genes.add(entry.getKey());
+                multipleSet.put(allele1, genes);
+            });
+        }
+
 
         // Allele ID, List<GeneID>
         Map<String, List<String>> alleleOCa = new HashMap<>();
