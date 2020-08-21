@@ -22,14 +22,17 @@ public class StatisticsController implements StatisticsRESTInterface {
     private StatisticsService<Allele> service = new StatisticsService<>();
 
     @Override
-    public JsonResultResponse<StatisticRow> getTrans(String geneSpecies,
+    public JsonResultResponse<StatisticRow> getTrans(Integer limit,
+                                                     Integer page,
+                                                     String geneSpecies,
                                                      String filterSubEntity,
+                                                     String filterSubEntityCardinality,
                                                      String sortBy) {
         long start = System.currentTimeMillis();
-        Pagination pagination = new Pagination();
+        Pagination pagination = new Pagination(page, limit, sortBy, null);
         pagination.addFieldFilter(FieldFilter.SPECIES, geneSpecies);
         pagination.addFieldFilter(FieldFilter.SUB_ENTITY, filterSubEntity);
-        pagination.setSortBy(sortBy);
+        pagination.addFieldFilter(FieldFilter.SUB_ENTITY_CARDINALITY, filterSubEntityCardinality);
         List<ColumnStats<Allele, ?>> stats = List.of(
                 new ColumnStats<>("Gene", true, false, false, false),
                 new ColumnStats<>("Gene Species", true, false, false, true),

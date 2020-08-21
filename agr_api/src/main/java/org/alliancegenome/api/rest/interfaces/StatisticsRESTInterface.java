@@ -42,10 +42,16 @@ public interface StatisticsRESTInterface {
                             content = @Content(mediaType = "application/json",
                                     schema = @Schema(implementation = DOTerm.class)))})
     JsonResultResponse<StatisticRow> getTrans(
+            @Parameter(in = ParameterIn.QUERY, name = "limit", description = "Number of rows returned", schema = @Schema(type = SchemaType.INTEGER))
+            @DefaultValue("20") @QueryParam("limit") Integer limit,
+            @Parameter(in = ParameterIn.QUERY, name = "page", description = "Page number", schema = @Schema(type = SchemaType.INTEGER))
+            @DefaultValue("1") @QueryParam("page") Integer page,
             @Parameter(in = ParameterIn.QUERY, name = "filter.geneSpecies", description = "genetic entity symbol", schema = @Schema(type = SchemaType.STRING))
             @QueryParam("filter.geneSpecies") String geneSpecies,
             @Parameter(in = ParameterIn.QUERY, name = "filter.subEntity", description = "genetic entity symbol", schema = @Schema(type = SchemaType.STRING))
             @QueryParam("filter.subEntity") String filterSubEntity,
+            @Parameter(in = ParameterIn.QUERY, name = "filter.subEntity.cardinality", description = "genetic entity symbol", schema = @Schema(type = SchemaType.STRING))
+            @QueryParam("filter.subEntity.cardinality") String filterSubEntityCardinality,
             @Parameter(in = ParameterIn.QUERY, name = "sortBy", description = "sort by a given field", schema = @Schema(type = SchemaType.STRING))
             @QueryParam("sortBy") String sortBy
 

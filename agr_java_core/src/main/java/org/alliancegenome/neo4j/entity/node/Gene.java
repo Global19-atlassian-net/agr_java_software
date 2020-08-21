@@ -136,6 +136,8 @@ public class Gene extends GeneticEntity implements Comparable<Gene> {
 
     @Override
     public String toString() {
+        if(primaryKey == null)
+            return symbol;
         return primaryKey + ", " + symbol;
     }
 

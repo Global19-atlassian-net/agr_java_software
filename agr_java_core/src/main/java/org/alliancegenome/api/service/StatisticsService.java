@@ -12,6 +12,7 @@ import org.alliancegenome.neo4j.entity.SpeciesType;
 import org.alliancegenome.neo4j.entity.node.Allele;
 import org.alliancegenome.neo4j.entity.node.Construct;
 import org.alliancegenome.neo4j.entity.node.GeneticEntity;
+import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.collections4.MapUtils;
 import org.apache.commons.lang3.Range;
 import org.apache.commons.lang3.StringUtils;
@@ -65,6 +66,30 @@ public class StatisticsService<Entity> {
             filteredAlleleMap = filteredAlleleMap1;
         }
 
+        // filter by sub entity cardinality
+        String subEntityFilterCardinality = pagination.getFieldFilterValueMap().get(FieldFilter.SUB_ENTITY_CARDINALITY);
+        if (subEntityFilterCardinality != null && !subEntityFilterCardinality.isEmpty()) {
+            String[] subEntitySplit = subEntityFilterCardinality.split(";");
+            String subEntityName = subEntitySplit[0];
+            String subEntityFilterValue = subEntitySplit[1];
+            int cardinality = Integer.parseInt(subEntityFilterValue);
+            ColumnStats<Allele, ?> columnStats = getSubEntityRowColumn().stream()
+                    .filter(col -> col.getName().equals(subEntityName)).findFirst().get();
+
+            Map<String, List<Allele>> filteredAlleleMap1 = new LinkedHashMap<>();
+            for (Map.Entry<String, List<Allele>> entry : filteredAlleleMap.entrySet()) {
+                String gene = entry.getKey();
+                List<Allele> alleles = entry.getValue().stream()
+                        .filter(allele -> columnStats.getMultiValueFunction().apply(allele).size() == cardinality)
+                        .collect(toList());
+                if (CollectionUtils.isNotEmpty(alleles)) {
+                    filteredAlleleMap1.put(gene, alleles);
+                }
+
+            }
+            filteredAlleleMap = filteredAlleleMap1;
+        }
+
         List<StatisticRow> rows = new ArrayList<>();
         filteredAlleleMap.forEach((gene, alleles) -> {
             StatisticRow row = new StatisticRow();
@@ -81,6 +106,9 @@ public class StatisticsService<Entity> {
             ColumnStats<Allele, ?> alleleColStat = getRowEntityColumn();
             ColumnValues alleleValue = new ColumnValues();
             alleleValue.setTotalNumber(alleles.size());
+            if (alleles.size() == 1) {
+                alleleValue.setValue(alleles.get(0).getSymbolText());
+            }
             row.put(alleleColStat, alleleValue);
 
             getSubEntityRowColumn().forEach(columnStats -> {
@@ -89,6 +117,9 @@ public class StatisticsService<Entity> {
                     columnValues1.setTotalNumber(getTotalNumberPerUberEntity(alleles, columnStats.getMultiValueFunction()));
                     columnValues1.setTotalDistinctNumber(getTotalDistinctNumberPerUberEntity(alleles, columnStats.getMultiValueFunction()));
                     columnValues1.setCardinality(getCardinalityPerUberEntity(alleles, columnStats.getMultiValueFunction()));
+                    if (alleles.size() == 1) {
+                        columnValues1.setValue(getMultiValues(alleles, columnStats.getMultiValueFunction()));
+                    }
                 } else {
                     // calculate the histogram of possible values
                     if (columnStats.getSingleValuefunction() != null) {
@@ -118,7 +149,7 @@ public class StatisticsService<Entity> {
             String sortByField = pagination.getSortBy();
             ColumnStats<Allele, ?> columnStats = getSubEntityRowColumn().stream()
                     .filter(col -> col.getName().equals(sortByField)).findFirst().get();
-            rows.sort(comparing(statisticRow -> (Integer)statisticRow.getColumns().entrySet().stream()
+            rows.sort(comparing(statisticRow -> (Integer) statisticRow.getColumns().entrySet().stream()
                     .filter(entry -> entry.getValue().getColumnDefinition().equals(columnStats))
                     .findAny().get().getValue().getColumnStat().getCardinality().getMaximum()));
             Collections.reverse(rows);
@@ -376,6 +407,14 @@ public class StatisticsService<Entity> {
                         LinkedHashMap::new
                 ));
     }
+
+    private String getMultiValues(List<Allele> alleles, Function<Allele, ? extends List<?>> multiValueFunction) {
+        if (CollectionUtils.isEmpty(alleles) || alleles.size() > 1)
+            return null;
+        List<?> values = multiValueFunction.apply(alleles.get(0));
+        return values.stream().map(Object::toString).collect(joining(", "));
+    }
+
 
     private ColumnStats getRowEntityColumn() {
         final Optional<ColumnStats<Allele, ?>> any = stats.stream().filter(ColumnStats::isRowEntity).findAny();

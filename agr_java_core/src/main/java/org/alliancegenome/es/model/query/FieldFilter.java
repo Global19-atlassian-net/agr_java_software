@@ -44,6 +44,7 @@ public enum FieldFilter {
     ORTHOLOGY_METHOD("method"),
     ORTHOLOGY_TAXON("taxon"),
     SUB_ENTITY("sub-entity"),
+    SUB_ENTITY_CARDINALITY("sub-entity-cardinality"),
     INDEX_NAME("indexName");
     public static final String FILTER_PREFIX = "filter.";
     private String name;
