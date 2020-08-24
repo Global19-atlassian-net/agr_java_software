@@ -225,17 +225,30 @@ public class StatisticsService<Entity> {
                 .collect(toList());
         alleleValues.setTotalDistinctNumber(distinctAlleles.size());
         // multiplicity
-        Map<Allele, List<String>> multipleSet = new HashMap<>();
-        for(Map.Entry<String, List<Allele>> entry: alleleMap.entrySet()){
+        Map<String, List<String>> multipleSet = new HashMap<>();
+        for (Map.Entry<String, List<Allele>> entry : alleleMap.entrySet()) {
             entry.getValue().forEach(allele1 -> {
-                List<String> genes = multipleSet.get(allele1);
-                if(genes == null)
+                List<String> genes = multipleSet.get(allele1.getPrimaryKey());
+                if (genes == null)
                     genes = new ArrayList<>();
                 genes.add(entry.getKey());
-                multipleSet.put(allele1, genes);
+                multipleSet.put(allele1.getPrimaryKey(), genes);
             });
         }
 
+        Map<String, List<String>> multipleSetSorted =
+                multipleSet.entrySet().stream()
+                        .filter(entry -> entry.getValue().size() > 0)
+                        .sorted(comparingInt(entry -> -entry.getValue().size()))
+                        .collect(toMap(
+                                Map.Entry::getKey,
+                                Map.Entry::getValue,
+                                (a, b) -> {
+                                    throw new AssertionError();
+                                },
+                                LinkedHashMap::new
+                        ));
+        Map<String, Integer> multipleSetPreSorted = getValueSortedMap(multipleSet);
 
         // Allele ID, List<GeneID>
         Map<String, List<String>> alleleOCa = new HashMap<>();
