@@ -202,6 +202,7 @@ public class SearchHelper {
     @Getter
     private final List<String> responseFields = new ArrayList<String>() {
         {
+            add("alterationType");
             add("biologicalProcess");
             add("branch");
             add("category");
