@@ -25,6 +25,39 @@
 		<revision>3.2.0</revision>
 	</properties>
 
+	<dependencies>
+		<dependency>
+			<groupId>org.codehaus.groovy</groupId>
+			<artifactId>groovy-all</artifactId>
+			<version>3.0.5</version>
+			<scope>test</scope>
+			<type>pom</type>
+		</dependency>
+		<dependency>
+			<groupId>junit</groupId>
+			<artifactId>junit</artifactId>
+			<version>4.12</version>
+		</dependency>
+		<dependency>
+			<groupId>org.spockframework</groupId>
+			<artifactId>spock-core</artifactId>
+			<version>2.0-M3-groovy-3.0</version>
+			<scope>test</scope>
+		</dependency>
+		<dependency> <!-- todo: is this still necessary? -->
+			<groupId>org.jboss.arquillian.spock</groupId>
+			<artifactId>arquillian-spock-core</artifactId>
+			<version>1.0.0.CR1</version>
+			<scope>test</scope>
+		</dependency>
+		<dependency>
+			<groupId>org.junit.jupiter</groupId>
+			<artifactId>junit-jupiter-engine</artifactId>
+			<version>5.6.2</version>
+			<scope>test</scope>
+		</dependency>
+	</dependencies>
+
 	<build>
 		<pluginManagement>
 			<plugins>
@@ -33,8 +66,99 @@
 					<artifactId>maven-compiler-plugin</artifactId>
 					<version>3.8.0</version>
 				</plugin>
+				<plugin>
+					<groupId>org.codehaus.gmavenplus</groupId>
+					<artifactId>gmavenplus-plugin</artifactId>
+					<version>1.9.1</version>
+					<executions>
+						<execution>
+							<goals>
+								<goal>compileTests</goal>
+<!--								<goal>addSources</goal>
+								<goal>addTestSources</goal>
+								<goal>generateStubs</goal>
+								<goal>compile</goal>
+								<goal>removeStubs</goal>
+								<goal>removeTestStubs</goal>-->
+							</goals>
+						</execution>
+					</executions>
+					<configuration>
+						<testSources>
+							<testSource>
+								<directory>${project.basedir}/src/test/groovy</directory>
+								<includes>
+									<include>**/*.groovy</include>
+								</includes>
+							</testSource>
+						</testSources>
+					</configuration>
+					<dependencies>
+						<dependency>
+							<groupId>org.codehaus.groovy</groupId>
+							<artifactId>groovy-all</artifactId>
+							<version>3.0.5</version>
+						</dependency>
+					</dependencies>
+				</plugin>
+
+				<!-- this runs unit tests -->
+				<plugin>
+					<groupId>org.apache.maven.plugins</groupId>
+					<artifactId>maven-surefire-plugin</artifactId>
+					<version>3.0.0-M5</version>
+					<configuration>
+						<parallel>methods</parallel>
+						<threadCount>5</threadCount>
+						<includes>
+							<include>**/*Test.*</include>
+							<include>**/*UnitSpec.*</include>
+						</includes>
+					</configuration>
+				</plugin>
+				<!-- this runs integration tests -->
+				<plugin>
+					<groupId>org.apache.maven.plugins</groupId>
+					<artifactId>maven-failsafe-plugin</artifactId>
+					<version>3.0.0-M5</version>
+					<executions>
+						<execution>
+							<id>integration-test</id>
+							<goals>
+								<goal>integration-test</goal>
+							</goals>
+						</execution>
+						<execution>
+							<id>verify</id>
+							<goals>
+								<goal>verify</goal>
+							</goals>
+						</execution>
+					</executions>
+				</plugin>
+<!--				<plugin>
+					<groupId>org.apache.maven.plugins</groupId>
+					<artifactId>maven-failsafe-plugin</artifactId>
+					<version>3.0.0-M5</version>
+					<executions>
+						<execution>
+							<goals>
+								<goal>integration-test</goal>
+								<goal>verify</goal>
+							</goals>
+						</execution>
+					</executions>
+					<configuration>
+						<skipAfterFailureCount>0</skipAfterFailureCount>
+						<includes>
+							<include>**/*IT.*</include>
+							<include>**/*IntegrationSpec.*</include>
+						</includes>
+					</configuration>
+				</plugin>-->
 			</plugins>
 		</pluginManagement>
 	</build>
+
 
 </project>

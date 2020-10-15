@@ -9,7 +9,7 @@ class QueryManipulationUnitSpec extends Specification {
     private QueryManipulationService queryManipulationService = new QueryManipulationService()
 
     @Unroll
-    def "#query should be replaced with #output"() {
+    def "#query should be replaced with #expectedOutput"() {
         when:
         String manipulatedQuery = queryManipulationService.processQuery(query)
         then:

@@ -54,13 +54,13 @@
 		<dependency>
 			<groupId>org.spockframework</groupId>
 			<artifactId>spock-core</artifactId>
-			<version>1.0-groovy-2.4</version>
+			<version>2.0-M3-groovy-3.0</version>
 			<scope>test</scope>
 		</dependency>
 		<dependency>
 			<groupId>org.jboss.arquillian.spock</groupId>
-			<artifactId>arquillian-spock-example-groovy-2.x</artifactId>
-			<version>1.0.0.Beta3</version>
+			<artifactId>arquillian-spock-core</artifactId>
+			<version>1.0.0.CR1</version>
 			<scope>test</scope>
 		</dependency>
 	</dependencies>
@@ -157,7 +157,7 @@
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-failsafe-plugin</artifactId>
-				<version>2.19.1</version>
+				<version>3.0.0-M5</version>
 				<executions>
 					<execution>
 						<goals>
